@@ -1,0 +1,42 @@
+run:
+  timeout: 5m
+  issues-exit-code: 1
+  tests: true
+
+linters:
+  disable-all: true
+  enable:
+    - errcheck
+    - gosimple
+    - govet
+    - ineffassign
+    - staticcheck
+    - unused
+    - misspell
+    - gocritic
+
+issues:
+  exclude-rules:
+    # Exclude type checking issues that appear to be linter-specific
+    - text: "undefined: resty"
+      linters:
+        - typecheck
+    - text: "undefined.*On"
+      linters:
+        - typecheck
+    - text: "undefined.*Called"
+      linters:
+        - typecheck
+    - text: "undefined.*AssertExpectations"
+      linters:
+        - typecheck
+
+linters-settings:
+  gocritic:
+    enabled-tags:
+      - diagnostic
+      - style
+      - performance
+    disabled-checks:
+      - unnamedResult
+      - hugeParam
