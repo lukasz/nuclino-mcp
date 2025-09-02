@@ -35,6 +35,20 @@ func NewNuclinoMCPServer(nuclinoClient nuclino.Client) *NuclinoMCPServer {
 func (s *NuclinoMCPServer) setupHandlers() {
 	// Cast to DefaultServer to access handler methods
 	if defaultServer, ok := s.mcpServer.(*server.DefaultServer); ok {
+		// Set initialize handler to advertise capabilities
+		defaultServer.HandleInitialize(func(ctx context.Context, capabilities mcp.ClientCapabilities, clientInfo mcp.Implementation, protocolVersion string) (*mcp.InitializeResult, error) {
+			return &mcp.InitializeResult{
+				ProtocolVersion: protocolVersion,
+				Capabilities: mcp.ServerCapabilities{
+					Tools: &mcp.ServerCapabilitiesTools{},
+				},
+				ServerInfo: mcp.Implementation{
+					Name:    "nuclino-mcp-server",
+					Version: "0.1.0",
+				},
+			}, nil
+		})
+
 		// Set tools handler
 		defaultServer.HandleCallTool(func(ctx context.Context, name string, arguments map[string]interface{}) (*mcp.CallToolResult, error) {
 			log.Info().Str("tool", name).Msg("Calling tool")
