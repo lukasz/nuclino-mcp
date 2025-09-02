@@ -44,7 +44,8 @@ Create or edit the `claude_desktop_config.json` file:
 {
   "mcpServers": {
     "nuclino": {
-      "command": "/full/path/to/nuclino-mcp-server/bin/nuclino-mcp-server",
+      "command": "/full/path/to/nuclino-mcp/scripts/mcp-wrapper.sh",
+      "args": ["/full/path/to/nuclino-mcp/bin/nuclino-mcp-server"],
       "env": {
         "NUCLINO_API_KEY": "your_api_key_here",
         "LOG_LEVEL": "info",
@@ -54,6 +55,23 @@ Create or edit the `claude_desktop_config.json` file:
   }
 }
 ```
+
+**Important:** Use the wrapper script to avoid JSON-RPC protocol issues. Alternatively, you can use the server directly:
+
+```json
+{
+  "mcpServers": {
+    "nuclino": {
+      "command": "/full/path/to/nuclino-mcp/bin/nuclino-mcp-server",
+      "env": {
+        "NUCLINO_API_KEY": "your_api_key_here"
+      }
+    }
+  }
+}
+```
+
+*Note: The wrapper fixes protocol compatibility issues with Claude Desktop. If you experience connection problems, always try the wrapper first.*
 
 **Important Notes:**
 - Use **full absolute path** to the binary

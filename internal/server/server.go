@@ -77,6 +77,12 @@ func (s *NuclinoMCPServer) setupHandlers() {
 				Tools: toolsList,
 			}, nil
 		})
+
+		// Handle initialized notification - this should not have a response
+		defaultServer.HandleNotification("notifications/initialized", func(ctx context.Context, params any) (any, error) {
+			log.Debug().Msg("Received initialized notification")
+			return nil, nil
+		})
 	}
 }
 
