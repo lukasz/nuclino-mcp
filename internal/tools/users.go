@@ -8,32 +8,6 @@ import (
 	"github.com/mark3labs/mcp-go/mcp"
 )
 
-// GetCurrentUserTool implements getting current user information
-type GetCurrentUserTool struct {
-	client nuclino.Client
-}
-
-func (t *GetCurrentUserTool) Name() string {
-	return "nuclino_get_current_user"
-}
-
-func (t *GetCurrentUserTool) Description() string {
-	return "Get information about the currently authenticated Nuclino user"
-}
-
-func (t *GetCurrentUserTool) InputSchema() interface{} {
-	return JSONSchema(map[string]interface{}{}, []string{})
-}
-
-func (t *GetCurrentUserTool) Execute(args map[string]interface{}) (*mcp.CallToolResult, error) {
-	user, err := t.client.GetCurrentUser(context.Background())
-	if err != nil {
-		return FormatError(err)
-	}
-
-	return FormatResult(user)
-}
-
 // GetUserTool implements getting user information by ID
 type GetUserTool struct {
 	client nuclino.Client

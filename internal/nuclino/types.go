@@ -72,16 +72,16 @@ type Item struct {
 
 // CreateItemRequest represents the request to create a new item
 type CreateItemRequest struct {
-	Title        string `json:"title" validate:"required"`
-	Content      string `json:"content"`
-	CollectionID string `json:"collectionId" validate:"required"`
+	Title       string `json:"title" validate:"required"`
+	Content     string `json:"content"`
+	WorkspaceID string `json:"workspaceId" validate:"required"`
+	ParentID    string `json:"parentId,omitempty"`
 }
 
 // UpdateItemRequest represents the request to update an item
 type UpdateItemRequest struct {
-	Title        *string `json:"title,omitempty"`
-	Content      *string `json:"content,omitempty"`
-	CollectionID *string `json:"collectionId,omitempty"`
+	Title   *string `json:"title,omitempty"`
+	Content *string `json:"content,omitempty"`
 }
 
 // SearchItemsRequest represents the request for searching items

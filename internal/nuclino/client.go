@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/go-resty/resty/v2"
+	"github.com/rs/zerolog/log"
 	"golang.org/x/time/rate"
 )
 
@@ -24,7 +25,6 @@ const (
 // Client interface defines the methods for interacting with Nuclino API
 type Client interface {
 	// User methods
-	GetCurrentUser(ctx context.Context) (*User, error)
 	GetUser(ctx context.Context, userID string) (*User, error)
 
 	// Team methods
@@ -136,14 +136,18 @@ func (c *client) makeRequest(ctx context.Context, method, path string, body inte
 		return fmt.Errorf("rate limit wait failed: %w", err)
 	}
 
+	// Add debug logging
+	log.Debug().
+		Str("method", method).
+		Str("path", path).
+		Bool("has_body", body != nil).
+		Bool("expect_result", result != nil).
+		Msg("Making API request")
+
 	req := c.httpClient.R().SetContext(ctx)
 
 	if body != nil {
 		req.SetBody(body)
-	}
-
-	if result != nil {
-		req.SetResult(result)
 	}
 
 	var resp *resty.Response
@@ -165,10 +169,39 @@ func (c *client) makeRequest(ctx context.Context, method, path string, body inte
 	}
 
 	if err != nil {
+		log.Error().
+			Err(err).
+			Str("method", method).
+			Str("path", path).
+			Msg("HTTP request failed")
 		return fmt.Errorf("HTTP request failed: %w", err)
 	}
 
+	log.Debug().
+		Str("method", method).
+		Str("path", path).
+		Int("status_code", resp.StatusCode()).
+		Int("body_size", len(resp.Body())).
+		Msg("Received API response")
+
 	if resp.StatusCode() >= 400 {
+		log.Error().
+			Str("method", method).
+			Str("path", path).
+			Int("status_code", resp.StatusCode()).
+			Str("response_body", string(resp.Body())).
+			Msg("API request failed")
+
+		// Try to parse Nuclino API error format first
+		var nuclinoErr struct {
+			Status  string `json:"status"`
+			Message string `json:"message"`
+		}
+		if err := json.Unmarshal(resp.Body(), &nuclinoErr); err == nil && nuclinoErr.Status == "fail" {
+			return NewAPIError(resp.StatusCode(), nuclinoErr.Message)
+		}
+		
+		// Fallback to generic API error
 		var apiErr APIError
 		if err := json.Unmarshal(resp.Body(), &apiErr); err != nil {
 			return NewAPIError(resp.StatusCode(), string(resp.Body()))
@@ -176,16 +209,35 @@ func (c *client) makeRequest(ctx context.Context, method, path string, body inte
 		return &apiErr
 	}
 
+	// Parse Nuclino wrapped response if result is provided
+	if result != nil {
+		// Try to parse as wrapped response {status: "success", data: {...}}
+		var wrappedResp struct {
+			Status string          `json:"status"`
+			Data   json.RawMessage `json:"data"`
+		}
+		
+		if err := json.Unmarshal(resp.Body(), &wrappedResp); err == nil && wrappedResp.Status == "success" {
+			log.Debug().
+				Str("method", method).
+				Str("path", path).
+				Msg("Successfully parsed wrapped response")
+			// Unmarshal the data field into result
+			return json.Unmarshal(wrappedResp.Data, result)
+		}
+		
+		log.Debug().
+			Str("method", method).
+			Str("path", path).
+			Msg("Using direct response parsing (not wrapped)")
+		// Fallback: try direct unmarshaling
+		return json.Unmarshal(resp.Body(), result)
+	}
+
 	return nil
 }
 
 // User methods
-func (c *client) GetCurrentUser(ctx context.Context) (*User, error) {
-	var user User
-	err := c.makeRequest(ctx, http.MethodGet, "/v0/user", nil, &user)
-	return &user, err
-}
-
 func (c *client) GetUser(ctx context.Context, userID string) (*User, error) {
 	var user User
 	err := c.makeRequest(ctx, http.MethodGet, fmt.Sprintf("/v0/users/%s", userID), nil, &user)
@@ -213,11 +265,8 @@ func (c *client) GetTeam(ctx context.Context, teamID string) (*Team, error) {
 func (c *client) ListWorkspaces(ctx context.Context, limit, offset int) (*WorkspacesResponse, error) {
 	// Nuclino API returns wrapped response: {"status":"success","data":{"object":"list","results":[...]}}
 	var apiResp struct {
-		Status string `json:"status"`
-		Data   struct {
-			Object  string      `json:"object"`
-			Results []Workspace `json:"results"`
-		} `json:"data"`
+		Object  string      `json:"object"`
+		Results []Workspace `json:"results"`
 	}
 	
 	path := "/v0/workspaces"
@@ -232,8 +281,8 @@ func (c *client) ListWorkspaces(ctx context.Context, limit, offset int) (*Worksp
 	
 	// Convert to our response format
 	resp := &WorkspacesResponse{
-		Results: apiResp.Data.Results,
-		Total:   len(apiResp.Data.Results),
+		Results: apiResp.Results,
+		Total:   len(apiResp.Results),
 		Limit:   limit,
 		Offset:  offset,
 	}
@@ -299,15 +348,41 @@ func (c *client) DeleteCollection(ctx context.Context, collectionID string) erro
 // Item methods
 func (c *client) SearchItems(ctx context.Context, req *SearchItemsRequest) (*ItemsResponse, error) {
 	var resp ItemsResponse
-	err := c.makeRequest(ctx, http.MethodPost, "/v0/items/search", req, &resp)
+	
+	// Build query parameters for GET /v0/items
+	path := "/v0/items?"
+	
+	if req.WorkspaceID != "" {
+		path += "workspaceId=" + req.WorkspaceID + "&"
+	}
+	if req.Query != "" {
+		path += "search=" + req.Query + "&"
+	}
+	if req.Limit > 0 {
+		path += "limit=" + fmt.Sprintf("%d", req.Limit) + "&"
+	}
+	if req.Offset > 0 {
+		path += "offset=" + fmt.Sprintf("%d", req.Offset) + "&"
+	}
+	
+	// Remove trailing &
+	if path[len(path)-1] == '&' {
+		path = path[:len(path)-1]
+	}
+	
+	err := c.makeRequest(ctx, http.MethodGet, path, nil, &resp)
 	return &resp, err
 }
 
 func (c *client) ListItems(ctx context.Context, workspaceID string, limit, offset int) (*ItemsResponse, error) {
 	var resp ItemsResponse
-	path := fmt.Sprintf("/v0/workspaces/%s/items", workspaceID)
-	if limit > 0 || offset > 0 {
-		path += "?limit=" + strconv.Itoa(limit) + "&offset=" + strconv.Itoa(offset)
+	// Try using query parameters instead of path-based endpoint
+	path := "/v0/items?workspaceId=" + workspaceID
+	if limit > 0 {
+		path += "&limit=" + strconv.Itoa(limit)
+	}
+	if offset > 0 {
+		path += "&offset=" + strconv.Itoa(offset)  
 	}
 	err := c.makeRequest(ctx, http.MethodGet, path, nil, &resp)
 	return &resp, err
@@ -327,7 +402,7 @@ func (c *client) CreateItem(ctx context.Context, req *CreateItemRequest) (*Item,
 
 func (c *client) UpdateItem(ctx context.Context, itemID string, req *UpdateItemRequest) (*Item, error) {
 	var item Item
-	err := c.makeRequest(ctx, http.MethodPatch, fmt.Sprintf("/v0/items/%s", itemID), req, &item)
+	err := c.makeRequest(ctx, http.MethodPut, fmt.Sprintf("/v0/items/%s", itemID), req, &item)
 	return &item, err
 }
 

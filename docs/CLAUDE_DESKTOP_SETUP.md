@@ -150,7 +150,7 @@ Get the content of Nuclino item with ID "abc123"
 
 **Create new content:**
 ```
-Create a new Nuclino item titled "Project Overview" in collection "xyz789" with this content:
+Create a new Nuclino item titled "Project Overview" in workspace "xyz789" with this content:
 # Project Overview
 ## Goals
 - Goal 1
@@ -159,14 +159,14 @@ Create a new Nuclino item titled "Project Overview" in collection "xyz789" with 
 Q1 2024
 ```
 
-**Workspace analysis:**
+**Update existing content:**
 ```
-Give me a comprehensive overview of workspace "workspace-123" including collections and recent activity
+Update Nuclino item "abc123" with new title "Updated Project Overview"
 ```
 
-**Collection organization:**
+**Workspace analysis:**
 ```
-Analyze collection "docs-456" and suggest organization improvements
+Give me a comprehensive overview of workspace "workspace-123" including recent activity
 ```
 
 ## Troubleshooting

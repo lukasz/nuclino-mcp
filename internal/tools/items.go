@@ -56,11 +56,10 @@ func (t *SearchItemsTool) Description() string {
 
 func (t *SearchItemsTool) InputSchema() interface{} {
 	return JSONSchema(map[string]interface{}{
-		"query":         StringProperty("Search query text"),
-		"workspace_id":  StringProperty("Optional workspace ID to limit search scope"),
-		"collection_id": StringProperty("Optional collection ID to limit search to specific collection"),
-		"limit":         IntProperty("Maximum number of items to return (default: 50)"),
-		"offset":        IntProperty("Number of items to skip for pagination (default: 0)"),
+		"query":        StringProperty("Search query text"),
+		"workspace_id": StringProperty("Optional workspace ID to limit search scope"),
+		"limit":        IntProperty("Maximum number of items to return (default: 50)"),
+		"offset":       IntProperty("Number of items to skip for pagination (default: 0)"),
 	}, []string{})
 }
 
@@ -85,24 +84,10 @@ func (t *SearchItemsTool) Execute(args map[string]interface{}) (*mcp.CallToolRes
 		req.Offset = int(offset)
 	}
 
-	// Get initial search results
+	// Get search results
 	items, err := t.client.SearchItems(context.Background(), req)
 	if err != nil {
 		return FormatError(err)
-	}
-
-	// If collection_id is specified, filter results by collection
-	if collectionID, ok := args["collection_id"].(string); ok && collectionID != "" {
-		var filteredItems []nuclino.Item
-		for _, item := range items.Results {
-			if item.CollectionID == collectionID {
-				filteredItems = append(filteredItems, item)
-			}
-		}
-
-		// Update response with filtered results
-		items.Results = filteredItems
-		items.Total = len(filteredItems)
 	}
 
 	return FormatResult(items)
@@ -118,15 +103,16 @@ func (t *CreateItemTool) Name() string {
 }
 
 func (t *CreateItemTool) Description() string {
-	return "Create a new Nuclino item with title, content (in Markdown), and collection ID"
+	return "Create a new Nuclino item with title, content (in Markdown), and workspace ID. Optionally specify a parent item ID."
 }
 
 func (t *CreateItemTool) InputSchema() interface{} {
 	return JSONSchema(map[string]interface{}{
-		"title":         StringProperty("The title of the item"),
-		"content":       StringProperty("The content of the item in Markdown format"),
-		"collection_id": StringProperty("The ID of the collection to create the item in"),
-	}, []string{"title", "collection_id"})
+		"title":        StringProperty("The title of the item"),
+		"content":      StringProperty("The content of the item in Markdown format"),
+		"workspace_id": StringProperty("The ID of the workspace to create the item in"),
+		"parent_id":    StringProperty("Optional: The ID of the parent item (for nested structure)"),
+	}, []string{"title", "workspace_id"})
 }
 
 func (t *CreateItemTool) Execute(args map[string]interface{}) (*mcp.CallToolResult, error) {
@@ -138,14 +124,18 @@ func (t *CreateItemTool) Execute(args map[string]interface{}) (*mcp.CallToolResu
 	}
 	req.Title = title
 
-	collectionID, ok := args["collection_id"].(string)
+	workspaceID, ok := args["workspace_id"].(string)
 	if !ok {
-		return FormatError(fmt.Errorf("collection_id must be a string"))
+		return FormatError(fmt.Errorf("workspace_id must be a string"))
 	}
-	req.CollectionID = collectionID
+	req.WorkspaceID = workspaceID
 
 	if content, ok := args["content"].(string); ok {
 		req.Content = content
+	}
+
+	if parentID, ok := args["parent_id"].(string); ok && parentID != "" {
+		req.ParentID = parentID
 	}
 
 	item, err := t.client.CreateItem(context.Background(), req)
@@ -166,15 +156,14 @@ func (t *UpdateItemTool) Name() string {
 }
 
 func (t *UpdateItemTool) Description() string {
-	return "Update an existing Nuclino item. You can update title, content (Markdown), or collection ID"
+	return "Update an existing Nuclino item. You can update title and content (Markdown format)"
 }
 
 func (t *UpdateItemTool) InputSchema() interface{} {
 	return JSONSchema(map[string]interface{}{
-		"item_id":       StringProperty("The ID of the item to update"),
-		"title":         StringProperty("New title for the item (optional)"),
-		"content":       StringProperty("New content for the item in Markdown format (optional)"),
-		"collection_id": StringProperty("New collection ID to move the item to (optional)"),
+		"item_id": StringProperty("The ID of the item to update"),
+		"title":   StringProperty("New title for the item (optional)"),
+		"content": StringProperty("New content for the item in Markdown format (optional)"),
 	}, []string{"item_id"})
 }
 
@@ -192,10 +181,6 @@ func (t *UpdateItemTool) Execute(args map[string]interface{}) (*mcp.CallToolResu
 
 	if content, ok := args["content"].(string); ok {
 		req.Content = &content
-	}
-
-	if collectionID, ok := args["collection_id"].(string); ok {
-		req.CollectionID = &collectionID
 	}
 
 	item, err := t.client.UpdateItem(context.Background(), itemID, req)

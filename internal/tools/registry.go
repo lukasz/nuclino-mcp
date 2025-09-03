@@ -42,11 +42,13 @@ func (r *Registry) registerBasicTools() {
 	r.registerTool(&CreateItemTool{client: r.client})
 	r.registerTool(&UpdateItemTool{client: r.client})
 	r.registerTool(&DeleteItemTool{client: r.client})
-	r.registerTool(&MoveItemTool{client: r.client})
+	// Temporarily disabled: MoveItemTool (requires collection_id which may not exist)
+	// r.registerTool(&MoveItemTool{client: r.client})
 
 	// Register extended item tools
 	r.registerTool(&ListItemsTool{client: r.client})
-	r.registerTool(&ListCollectionItemsTool{client: r.client})
+	// Temporarily disabled: ListCollectionItemsTool (collections may not exist in API)
+	// r.registerTool(&ListCollectionItemsTool{client: r.client})
 
 	// Register workspace tools
 	r.registerTool(&ListWorkspacesTool{client: r.client})
@@ -59,20 +61,19 @@ func (r *Registry) registerBasicTools() {
 	r.registerTool(&GetWorkspaceOverviewTool{client: r.client})
 	r.registerTool(&SearchWorkspaceContentTool{client: r.client})
 
-	// Register collection tools
-	r.registerTool(&ListCollectionsTool{client: r.client})
-	r.registerTool(&GetCollectionTool{client: r.client})
-	r.registerTool(&CreateCollectionTool{client: r.client})
-	r.registerTool(&UpdateCollectionTool{client: r.client})
-	r.registerTool(&DeleteCollectionTool{client: r.client})
+	// Temporarily disabled: Collection tools (collections may not exist in Nuclino API)
+	// r.registerTool(&ListCollectionsTool{client: r.client})
+	// r.registerTool(&GetCollectionTool{client: r.client})
+	// r.registerTool(&CreateCollectionTool{client: r.client})
+	// r.registerTool(&UpdateCollectionTool{client: r.client})
+	// r.registerTool(&DeleteCollectionTool{client: r.client})
 
-	// Register extended collection tools
-	r.registerTool(&GetCollectionOverviewTool{client: r.client})
-	r.registerTool(&OrganizeCollectionTool{client: r.client})
-	r.registerTool(&BulkOperationsTool{client: r.client})
+	// Temporarily disabled: Extended collection tools
+	// r.registerTool(&GetCollectionOverviewTool{client: r.client})
+	// r.registerTool(&OrganizeCollectionTool{client: r.client})
+	// r.registerTool(&BulkOperationsTool{client: r.client})
 
 	// Register team and user tools
-	r.registerTool(&GetCurrentUserTool{client: r.client})
 	r.registerTool(&GetUserTool{client: r.client})
 	r.registerTool(&ListTeamsTool{client: r.client})
 	r.registerTool(&GetTeamTool{client: r.client})
