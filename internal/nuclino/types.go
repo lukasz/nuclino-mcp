@@ -2,6 +2,24 @@ package nuclino
 
 import "time"
 
+// APIResponse is the wrapper for all Nuclino API responses
+type APIResponse struct {
+	Status string      `json:"status"`
+	Data   interface{} `json:"data"`
+}
+
+// APIListResponse is the wrapper for list responses
+type APIListResponse struct {
+	Status string       `json:"status"`
+	Data   ListResponse `json:"data"`
+}
+
+// ListResponse represents the data field for list responses
+type ListResponse struct {
+	Object  string      `json:"object"`
+	Results interface{} `json:"results"`
+}
+
 // User represents a Nuclino user
 type User struct {
 	ID        string    `json:"id"`

@@ -76,7 +76,7 @@ func NewClient(apiKey string) Client {
 		SetTimeout(defaultTimeout).
 		SetRetryCount(defaultRetryCount).
 		SetRetryWaitTime(defaultRetryDelay).
-		SetHeader("Authorization", fmt.Sprintf("Bearer %s", apiKey)).
+		SetHeader("Authorization", apiKey). // Nuclino API expects just the token, without "Bearer"
 		SetHeader("Content-Type", "application/json").
 		SetHeader("Accept", "application/json")
 
@@ -112,7 +112,7 @@ func NewClientWithConfig(apiKey, baseURL string, rateLimitRPS int, timeout time.
 		SetTimeout(timeout).
 		SetRetryCount(defaultRetryCount).
 		SetRetryWaitTime(defaultRetryDelay).
-		SetHeader("Authorization", fmt.Sprintf("Bearer %s", apiKey)).
+		SetHeader("Authorization", apiKey). // Nuclino API expects just the token, without "Bearer"
 		SetHeader("Content-Type", "application/json").
 		SetHeader("Accept", "application/json")
 
@@ -211,13 +211,34 @@ func (c *client) GetTeam(ctx context.Context, teamID string) (*Team, error) {
 
 // Workspace methods
 func (c *client) ListWorkspaces(ctx context.Context, limit, offset int) (*WorkspacesResponse, error) {
-	var resp WorkspacesResponse
+	// Nuclino API returns wrapped response: {"status":"success","data":{"object":"list","results":[...]}}
+	var apiResp struct {
+		Status string `json:"status"`
+		Data   struct {
+			Object  string      `json:"object"`
+			Results []Workspace `json:"results"`
+		} `json:"data"`
+	}
+	
 	path := "/v0/workspaces"
 	if limit > 0 || offset > 0 {
 		path += "?limit=" + strconv.Itoa(limit) + "&offset=" + strconv.Itoa(offset)
 	}
-	err := c.makeRequest(ctx, http.MethodGet, path, nil, &resp)
-	return &resp, err
+	
+	err := c.makeRequest(ctx, http.MethodGet, path, nil, &apiResp)
+	if err != nil {
+		return nil, err
+	}
+	
+	// Convert to our response format
+	resp := &WorkspacesResponse{
+		Results: apiResp.Data.Results,
+		Total:   len(apiResp.Data.Results),
+		Limit:   limit,
+		Offset:  offset,
+	}
+	
+	return resp, nil
 }
 
 func (c *client) GetWorkspace(ctx context.Context, workspaceID string) (*Workspace, error) {
